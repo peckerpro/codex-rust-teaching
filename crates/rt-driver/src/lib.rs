@@ -80,7 +80,14 @@ pub fn compile_source(source: SourceFile, options: CompileOptions) -> String {
                 )
             }
         },
-        OutputFormat::Json => render_json(&trace, &parsed.root, &semantic, options.emit),
+        OutputFormat::Json => render_json(
+            &trace,
+            &parsed.root,
+            &semantic,
+            &llvm_ir,
+            &teaching_ir.text,
+            options.emit,
+        ),
     }
 }
 
@@ -102,11 +109,15 @@ fn render_json(
     trace: &CompileTrace,
     ast: &AstNode,
     semantic: &SemanticTrace,
+    llvm_ir: &str,
+    teaching_ir: &str,
     emit: EmitStage,
 ) -> String {
     let include_tokens = matches!(emit, EmitStage::Tokens | EmitStage::All);
     let include_ast = matches!(emit, EmitStage::Ast | EmitStage::All);
     let include_semantic = matches!(emit, EmitStage::Semantic | EmitStage::All);
+    let include_llvm_ir = matches!(emit, EmitStage::LlvmIr | EmitStage::All);
+    let include_teaching_ir = matches!(emit, EmitStage::TeachingIr | EmitStage::All);
     let tokens = if include_tokens {
         render_tokens_json(&trace.tokens)
     } else {
@@ -122,12 +133,24 @@ fn render_json(
     } else {
         "{}".to_string()
     };
+    let llvm_stage = if include_llvm_ir {
+        format!("{{ \"text\": \"{}\" }}", escape_json(llvm_ir))
+    } else {
+        "{}".to_string()
+    };
+    let teaching_stage = if include_teaching_ir {
+        format!("{{ \"text\": \"{}\" }}", escape_json(teaching_ir))
+    } else {
+        "{}".to_string()
+    };
     format!(
-        "{{\n  \"version\": \"0.1.0\",\n  \"source_name\": \"{}\",\n  \"stages\": {{\n    \"lexer\": {{ \"tokens\": {} }},\n    \"parser\": {},\n    \"semantic\": {},\n    \"llvm_ir\": {{}},\n    \"teaching_ir\": {{}}\n  }},\n  \"diagnostics\": {}\n}}\n",
+        "{{\n  \"version\": \"0.1.0\",\n  \"source_name\": \"{}\",\n  \"stages\": {{\n    \"lexer\": {{ \"tokens\": {} }},\n    \"parser\": {},\n    \"semantic\": {},\n    \"llvm_ir\": {},\n    \"teaching_ir\": {}\n  }},\n  \"diagnostics\": {}\n}}\n",
         escape_json(&trace.source_name),
         tokens,
         parser,
         semantic_stage,
+        llvm_stage,
+        teaching_stage,
         render_diagnostics_json(&trace.diagnostics)
     )
 }

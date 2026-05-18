@@ -22,6 +22,8 @@ name = "rt-codegen"
 version = "0.1.0"
 dependencies = [
  "rt-ast",
+ "rt-lexer",
+ "rt-parser",
 ]
 
 [[package]]

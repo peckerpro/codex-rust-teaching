@@ -65,3 +65,13 @@ cargo run -p rt-cli -- --emit semantic --format json examples/basic.rs
 cargo run -p rt-cli -- --emit semantic examples/semantic_errors.rs
 cargo test -p rt-semantic
 ```
+
+Phase 4 LLVM IR smoke tests:
+
+```bash
+cargo run -p rt-cli -- -S examples/basic.rs -o examples/basic.ll
+opt-18 -passes=verify examples/basic.ll -disable-output
+lli-18 examples/basic.ll
+cargo run -p rt-cli -- --emit llvm-ir --format json examples/basic.rs
+cargo test -p rt-codegen
+```
