@@ -144,3 +144,21 @@ tests/snapshots/basic.semantic.json
 tests/snapshots/basic.all.json
 ```
 
+
+## 6. Rustc Cross-Validation
+
+For supported executable subset examples, compare this compiler against the official Rust compiler by process exit code:
+
+```bash
+bash scripts/compare-with-rustc.sh
+```
+
+The teaching subset currently accepts `fn main() -> i32`, while official `rustc` does not accept `i32` as the direct Rust `main` return type. The cross-validation script therefore generates a temporary Rust wrapper:
+
+```rust
+fn main() {
+    std::process::exit(rtc_main());
+}
+```
+
+and rewrites the example's `fn main` to `fn rtc_main` before compiling with `rustc`. This keeps the student's core program unchanged while making exit-code comparison possible.

@@ -78,3 +78,9 @@ lli-18 examples/control_flow.ll
 cargo run -p rt-cli -- --emit llvm-ir --format json examples/basic.rs
 cargo test -p rt-codegen
 ```
+
+Rustc cross-validation:
+
+```bash
+bash scripts/compare-with-rustc.sh
+```
