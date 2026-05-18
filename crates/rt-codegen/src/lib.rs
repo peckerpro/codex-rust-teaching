@@ -57,7 +57,15 @@ struct FunctionCodegen<'a> {
     instructions: Vec<String>,
     locals: HashMap<String, Local>,
     temp_index: usize,
+    label_index: usize,
+    loop_stack: Vec<LoopLabels>,
     terminated: bool,
+}
+
+#[derive(Clone, Debug)]
+struct LoopLabels {
+    break_label: String,
+    continue_label: String,
 }
 
 impl<'a> Codegen<'a> {
@@ -98,6 +106,8 @@ impl<'a> FunctionCodegen<'a> {
             instructions: Vec::new(),
             locals: HashMap::new(),
             temp_index: 0,
+            label_index: 0,
+            loop_stack: Vec::new(),
             terminated: false,
         }
     }
@@ -190,6 +200,11 @@ impl<'a> FunctionCodegen<'a> {
         match stmt.kind.as_str() {
             "LetStmt" => self.gen_let(stmt),
             "ReturnStmt" => self.gen_return(stmt),
+            "IfStmt" => self.gen_if(stmt),
+            "WhileStmt" => self.gen_while(stmt),
+            "LoopStmt" => self.gen_loop(stmt),
+            "BreakStmt" => self.gen_break(),
+            "ContinueStmt" => self.gen_continue(),
             "ExprStmt" => {
                 if let Some(expr) = stmt.children.first() {
                     self.gen_expr(expr);
@@ -233,6 +248,130 @@ impl<'a> FunctionCodegen<'a> {
             self.emit("  ret void");
         }
         self.terminated = true;
+    }
+
+    fn gen_if(&mut self, stmt: &AstNode) {
+        let Some(condition_node) = stmt.children.first() else {
+            return;
+        };
+        let condition = self.gen_expr(condition_node);
+        let condition = self.cast_to_i1(condition);
+        let then_label = self.next_label("if.then");
+        let else_label = self.next_label("if.else");
+        let end_label = self.next_label("if.end");
+
+        self.emit(format!(
+            "  br i1 {}, label %{}, label %{}",
+            condition.repr, then_label, else_label
+        ));
+
+        self.emit_label(&then_label);
+        self.terminated = false;
+        if let Some(then_block) = stmt.children.get(1) {
+            self.gen_block(then_block);
+        }
+        let then_terminated = self.terminated;
+        if !then_terminated {
+            self.emit(format!("  br label %{}", end_label));
+        }
+
+        self.emit_label(&else_label);
+        self.terminated = false;
+        if let Some(else_node) = stmt.children.get(2) {
+            if else_node.kind == "Block" {
+                self.gen_block(else_node);
+            } else {
+                self.gen_stmt(else_node);
+            }
+        }
+        let else_terminated = self.terminated;
+        if !else_terminated {
+            self.emit(format!("  br label %{}", end_label));
+        }
+
+        if then_terminated && else_terminated {
+            self.terminated = true;
+        } else {
+            self.emit_label(&end_label);
+            self.terminated = false;
+        }
+    }
+
+    fn gen_while(&mut self, stmt: &AstNode) {
+        let condition_label = self.next_label("while.cond");
+        let body_label = self.next_label("while.body");
+        let end_label = self.next_label("while.end");
+
+        self.emit(format!("  br label %{}", condition_label));
+        self.emit_label(&condition_label);
+
+        let condition = stmt
+            .children
+            .first()
+            .map(|node| self.gen_expr(node))
+            .unwrap_or_else(|| zero_value(LlvmType::I1));
+        let condition = self.cast_to_i1(condition);
+        self.emit(format!(
+            "  br i1 {}, label %{}, label %{}",
+            condition.repr, body_label, end_label
+        ));
+
+        self.emit_label(&body_label);
+        self.loop_stack.push(LoopLabels {
+            break_label: end_label.clone(),
+            continue_label: condition_label.clone(),
+        });
+        self.terminated = false;
+        if let Some(body) = stmt.children.get(1) {
+            self.gen_block(body);
+        }
+        self.loop_stack.pop();
+        if !self.terminated {
+            self.emit(format!("  br label %{}", condition_label));
+        }
+
+        self.emit_label(&end_label);
+        self.terminated = false;
+    }
+
+    fn gen_loop(&mut self, stmt: &AstNode) {
+        let body_label = self.next_label("loop.body");
+        let end_label = self.next_label("loop.end");
+
+        self.emit(format!("  br label %{}", body_label));
+        self.emit_label(&body_label);
+        self.loop_stack.push(LoopLabels {
+            break_label: end_label.clone(),
+            continue_label: body_label.clone(),
+        });
+        self.terminated = false;
+        if let Some(body) = stmt.children.first() {
+            self.gen_block(body);
+        }
+        self.loop_stack.pop();
+        if !self.terminated {
+            self.emit(format!("  br label %{}", body_label));
+        }
+        self.emit_label(&end_label);
+        self.terminated = false;
+    }
+
+    fn gen_break(&mut self) {
+        if let Some(labels) = self.loop_stack.last().cloned() {
+            self.emit(format!("  br label %{}", labels.break_label));
+            self.terminated = true;
+        } else {
+            self.emit("  ; break outside loop");
+        }
+    }
+
+    fn gen_continue(&mut self) {
+        if let Some(labels) = self.loop_stack.last().cloned() {
+            self.emit(format!("  br label %{}", labels.continue_label));
+            self.terminated = true;
+        } else {
+            self.emit("  ; continue outside loop");
+        }
     }
 
     fn gen_expr(&mut self, expr: &AstNode) -> Value {
@@ -484,14 +623,28 @@ impl<'a> FunctionCodegen<'a> {
         }
     }
 
+    fn cast_to_i1(&mut self, value: Value) -> Value {
+        self.cast_if_needed(value, &LlvmType::I1)
+    }
+
     fn emit(&mut self, instruction: impl Into<String>) {
         self.instructions.push(instruction.into());
+    }
+
+    fn emit_label(&mut self, label: &str) {
+        self.instructions.push(format!("{}:", label));
     }
 
     fn next_temp(&mut self) -> String {
         let temp = format!("%t{}", self.temp_index);
         self.temp_index += 1;
         temp
+    }
+
+    fn next_label(&mut self, prefix: &str) -> String {
+        let label = format!("{}.{}", prefix, self.label_index);
+        self.label_index += 1;
+        label
     }
 
     fn next_named(&mut self, base: &str) -> String {
@@ -574,5 +727,16 @@ mod tests {
         assert!(ir.contains("alloca i32"));
         assert!(ir.contains("add i32 40, 2"));
         assert!(ir.contains("load i32"));
+    }
+
+    #[test]
+    fn emits_if_and_while_blocks() {
+        let ir = compile(
+            "fn main() -> i32 { let mut x: i32 = 0; while x < 3 { x = x + 1; } if x == 3 { return 42; } else { return 1; } }",
+        );
+        assert!(ir.contains("while.cond"));
+        assert!(ir.contains("while.body"));
+        assert!(ir.contains("if.then"));
+        assert!(ir.contains("br i1"));
     }
 }

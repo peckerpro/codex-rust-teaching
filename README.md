@@ -72,6 +72,9 @@ Phase 4 LLVM IR smoke tests:
 cargo run -p rt-cli -- -S examples/basic.rs -o examples/basic.ll
 opt-18 -passes=verify examples/basic.ll -disable-output
 lli-18 examples/basic.ll
+cargo run -p rt-cli -- -S examples/control_flow.rs -o examples/control_flow.ll
+opt-18 -passes=verify examples/control_flow.ll -disable-output
+lli-18 examples/control_flow.ll
 cargo run -p rt-cli -- --emit llvm-ir --format json examples/basic.rs
 cargo test -p rt-codegen
 ```
