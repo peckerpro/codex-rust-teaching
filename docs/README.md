@@ -12,3 +12,4 @@ Recommended reading order:
 4. `04-roadmap.md`
 5. `05-architecture-decisions.md`
 6. `06-testing-strategy.md`
+7. `07-agent-operations.md`

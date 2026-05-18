@@ -16,7 +16,7 @@ Testing follows a gray-first strategy: validate the smallest working compiler
 path before running full regression tests.
 
 See `docs/` for the current requirements, technology choices, environment notes,
-roadmap, architecture decisions, and testing strategy.
+roadmap, architecture decisions, testing strategy, and agent operations.
 
 ## Current Status
 
