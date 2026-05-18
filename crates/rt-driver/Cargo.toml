@@ -1,0 +1,18 @@
+[package]
+name = "rt-driver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+rt-ast = { path = "../rt-ast" }
+rt-codegen = { path = "../rt-codegen" }
+rt-common = { path = "../rt-common" }
+rt-ir-view = { path = "../rt-ir-view" }
+rt-lexer = { path = "../rt-lexer" }
+rt-parser = { path = "../rt-parser" }
+rt-semantic = { path = "../rt-semantic" }
+
+[lib]
+path = "src/lib.rs"

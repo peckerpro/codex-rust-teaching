@@ -18,3 +18,41 @@ path before running full regression tests.
 See `docs/` for the current requirements, technology choices, environment notes,
 roadmap, architecture decisions, and testing strategy.
 
+## Current Status
+
+The initial Cargo workspace is in place with the teaching compiler crates
+described in the roadmap:
+
+- `rt-common`
+- `rt-lexer`
+- `rt-ast`
+- `rt-parser`
+- `rt-semantic`
+- `rt-codegen`
+- `rt-ir-view`
+- `rt-driver`
+- `rt-cli`
+
+Phase 0 validation:
+
+```bash
+cargo build
+cargo test
+cargo run -p rt-cli -- --help
+```
+
+Phase 1 lexer smoke tests:
+
+```bash
+cargo run -p rt-cli -- --emit tokens --format json examples/basic.rs
+cargo run -p rt-cli -- --emit tokens examples/lexer_showcase.rs
+cargo test -p rt-lexer
+```
+
+Phase 2 parser smoke tests:
+
+```bash
+cargo run -p rt-cli -- --emit ast examples/basic.rs
+cargo run -p rt-cli -- --emit ast --format json examples/basic.rs
+cargo test -p rt-parser
+```

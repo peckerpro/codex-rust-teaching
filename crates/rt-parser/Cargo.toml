@@ -1,0 +1,15 @@
+[package]
+name = "rt-parser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+rt-ast = { path = "../rt-ast" }
+rt-common = { path = "../rt-common" }
+rt-lexer = { path = "../rt-lexer" }
+
+[lib]
+path = "src/lib.rs"
+

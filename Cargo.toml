@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/rt-common",
+    "crates/rt-lexer",
+    "crates/rt-ast",
+    "crates/rt-parser",
+    "crates/rt-semantic",
+    "crates/rt-codegen",
+    "crates/rt-ir-view",
+    "crates/rt-driver",
+    "crates/rt-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Rust Teaching Compiler Contributors"]
+

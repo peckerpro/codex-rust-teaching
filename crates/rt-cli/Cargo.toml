@@ -1,0 +1,15 @@
+[package]
+name = "rt-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+rt-common = { path = "../rt-common" }
+rt-driver = { path = "../rt-driver" }
+
+[[bin]]
+name = "rtc"
+path = "src/main.rs"
+
