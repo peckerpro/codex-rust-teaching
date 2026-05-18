@@ -4,7 +4,7 @@ use rt_ast::AstNode;
 use rt_common::{escape_json, Diagnostic, SourceFile, Span};
 use rt_lexer::{Lexer, Token};
 use rt_parser::parse_tokens;
-use rt_semantic::analyze;
+use rt_semantic::{analyze, ExpressionType, ScopeTrace, SemanticTrace, SymbolTrace};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmitStage {
@@ -80,7 +80,7 @@ pub fn compile_source(source: SourceFile, options: CompileOptions) -> String {
                 )
             }
         },
-        OutputFormat::Json => render_json(&trace, &parsed.root, options.emit),
+        OutputFormat::Json => render_json(&trace, &parsed.root, &semantic, options.emit),
     }
 }
 
@@ -98,9 +98,15 @@ fn render_tokens_text(tokens: &[Token]) -> String {
     out
 }
 
-fn render_json(trace: &CompileTrace, ast: &AstNode, emit: EmitStage) -> String {
+fn render_json(
+    trace: &CompileTrace,
+    ast: &AstNode,
+    semantic: &SemanticTrace,
+    emit: EmitStage,
+) -> String {
     let include_tokens = matches!(emit, EmitStage::Tokens | EmitStage::All);
     let include_ast = matches!(emit, EmitStage::Ast | EmitStage::All);
+    let include_semantic = matches!(emit, EmitStage::Semantic | EmitStage::All);
     let tokens = if include_tokens {
         render_tokens_json(&trace.tokens)
     } else {
@@ -111,13 +117,80 @@ fn render_json(trace: &CompileTrace, ast: &AstNode, emit: EmitStage) -> String {
     } else {
         "{}".to_string()
     };
+    let semantic_stage = if include_semantic {
+        render_semantic_json(semantic)
+    } else {
+        "{}".to_string()
+    };
     format!(
-        "{{\n  \"version\": \"0.1.0\",\n  \"source_name\": \"{}\",\n  \"stages\": {{\n    \"lexer\": {{ \"tokens\": {} }},\n    \"parser\": {},\n    \"semantic\": {{}},\n    \"llvm_ir\": {{}},\n    \"teaching_ir\": {{}}\n  }},\n  \"diagnostics\": {}\n}}\n",
+        "{{\n  \"version\": \"0.1.0\",\n  \"source_name\": \"{}\",\n  \"stages\": {{\n    \"lexer\": {{ \"tokens\": {} }},\n    \"parser\": {},\n    \"semantic\": {},\n    \"llvm_ir\": {{}},\n    \"teaching_ir\": {{}}\n  }},\n  \"diagnostics\": {}\n}}\n",
         escape_json(&trace.source_name),
         tokens,
         parser,
+        semantic_stage,
         render_diagnostics_json(&trace.diagnostics)
     )
+}
+
+fn render_semantic_json(semantic: &SemanticTrace) -> String {
+    format!(
+        "{{ \"scopes\": {}, \"symbols\": {}, \"expression_types\": {} }}",
+        render_scopes_json(&semantic.scopes),
+        render_symbols_json(&semantic.symbols),
+        render_expression_types_json(&semantic.expression_types)
+    )
+}
+
+fn render_scopes_json(scopes: &[ScopeTrace]) -> String {
+    let parts = scopes
+        .iter()
+        .map(|scope| {
+            let parent = scope
+                .parent
+                .map(|id| id.to_string())
+                .unwrap_or_else(|| "null".to_string());
+            format!(
+                "{{ \"id\": {}, \"parent\": {}, \"label\": \"{}\" }}",
+                scope.id,
+                parent,
+                escape_json(&scope.label)
+            )
+        })
+        .collect::<Vec<_>>();
+    format!("[{}]", parts.join(", "))
+}
+
+fn render_symbols_json(symbols: &[SymbolTrace]) -> String {
+    let parts = symbols
+        .iter()
+        .map(|symbol| {
+            format!(
+                "{{ \"name\": \"{}\", \"kind\": \"{}\", \"type\": \"{}\", \"mutable\": {}, \"scope_id\": {}, \"span\": {} }}",
+                escape_json(&symbol.name),
+                symbol.kind.as_str(),
+                symbol.ty.as_str(),
+                symbol.mutable,
+                symbol.scope_id,
+                render_span_json(symbol.span)
+            )
+        })
+        .collect::<Vec<_>>();
+    format!("[{}]", parts.join(", "))
+}
+
+fn render_expression_types_json(expression_types: &[ExpressionType]) -> String {
+    let parts = expression_types
+        .iter()
+        .map(|expr| {
+            format!(
+                "{{ \"node_id\": {}, \"type\": \"{}\", \"span\": {} }}",
+                expr.node_id,
+                expr.ty.as_str(),
+                render_span_json(expr.span)
+            )
+        })
+        .collect::<Vec<_>>();
+    format!("[{}]", parts.join(", "))
 }
 
 fn render_ast_json(node: &AstNode) -> String {

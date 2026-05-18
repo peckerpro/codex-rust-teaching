@@ -124,6 +124,7 @@ impl<'a> Parser<'a> {
             TokenKind::Return => self.parse_return_stmt(),
             TokenKind::If => self.parse_if_stmt(),
             TokenKind::While => self.parse_while_stmt(),
+            TokenKind::Loop => self.parse_loop_stmt(),
             TokenKind::Break => self.parse_keyword_stmt("BreakStmt", TokenKind::Break),
             TokenKind::Continue => self.parse_keyword_stmt("ContinueStmt", TokenKind::Continue),
             _ => self.parse_expr_stmt(),
@@ -204,6 +205,14 @@ impl<'a> Parser<'a> {
             start.join(body.span),
             vec![condition, body],
         )
+    }
+
+    fn parse_loop_stmt(&mut self) -> AstNode {
+        let start = self
+            .expect(TokenKind::Loop, "E1025", "expected `loop`")
+            .span;
+        let body = self.parse_block();
+        self.node_with_children("LoopStmt", "", start.join(body.span), vec![body])
     }
 
     fn parse_keyword_stmt(&mut self, kind: &str, token_kind: TokenKind) -> AstNode {

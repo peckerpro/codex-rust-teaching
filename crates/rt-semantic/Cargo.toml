@@ -9,6 +9,9 @@ authors.workspace = true
 rt-ast = { path = "../rt-ast" }
 rt-common = { path = "../rt-common" }
 
+[dev-dependencies]
+rt-lexer = { path = "../rt-lexer" }
+rt-parser = { path = "../rt-parser" }
+
 [lib]
 path = "src/lib.rs"
-

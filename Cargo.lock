@@ -67,4 +67,6 @@ version = "0.1.0"
 dependencies = [
  "rt-ast",
  "rt-common",
+ "rt-lexer",
+ "rt-parser",
 ]

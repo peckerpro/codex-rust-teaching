@@ -56,3 +56,12 @@ cargo run -p rt-cli -- --emit ast examples/basic.rs
 cargo run -p rt-cli -- --emit ast --format json examples/basic.rs
 cargo test -p rt-parser
 ```
+
+Phase 3 semantic smoke tests:
+
+```bash
+cargo run -p rt-cli -- --check examples/basic.rs
+cargo run -p rt-cli -- --emit semantic --format json examples/basic.rs
+cargo run -p rt-cli -- --emit semantic examples/semantic_errors.rs
+cargo test -p rt-semantic
+```
